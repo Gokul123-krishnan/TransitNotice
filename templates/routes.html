@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Salem City Bus Routes – TransitNotice{% endblock %}
+
+{% block content %}
+<div class="routes-container">
+
+    <!-- Header -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <h2 class="fw-bold mb-1" style="color: var(--primary-navy); letter-spacing: -0.02em;">
+                Salem City Bus Routes
+            </h2>
+            <p class="text-muted mb-0 small">
+                Verified city bus transit corridors operated by <strong>TNSTC Salem City Division</strong>.
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-white text-dark border p-2 small">
+                <i class="fas fa-bus text-cyan me-1"></i> Total Routes: <strong>{{ routes|length }}</strong>
+            </span>
+        </div>
+    </div>
+
+    <!-- Search & Filter Controls -->
+    <div class="transit-panel mb-4 shadow-sm">
+        <div class="transit-panel-body p-3">
+            <form action="{{ url_for('routes') }}" method="GET" class="row g-2 align-items-center">
+                <div class="col-md-5">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="fas fa-search"></i></span>
+                        <input type="text" name="q" value="{{ current_query }}" class="form-control border-start-0 ps-0" placeholder="Search route number, origin, destination, or key stop...">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select name="area" class="form-select">
+                        <option value="">All Salem City Locations</option>
+                        {% for a in salem_areas %}
+                            <option value="{{ a }}" {% if current_area == a %}selected{% endif %}>{{ a }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="status" class="form-select">
+                        <option value="">All Service Statuses</option>
+                        <option value="NORMAL" {% if current_status == 'NORMAL' %}selected{% endif %}>Normal Service</option>
+                        <option value="DIVERTED" {% if current_status == 'DIVERTED' %}selected{% endif %}>Diverted</option>
+                        <option value="SUSPENDED" {% if current_status == 'SUSPENDED' %}selected{% endif %}>Suspended</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary w-100 fw-semibold" style="background-color: var(--cyan-primary); border-color: var(--cyan-primary);">
+                        <i class="fas fa-filter me-1"></i> Filter
+                    </button>
+                    {% if current_query or current_area or current_status %}
+                        <a href="{{ url_for('routes') }}" class="btn btn-outline-secondary" title="Reset Filters">
+                            <i class="fas fa-rotate-left"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bus Route Cards Grid -->
+    <div class="row g-3 mb-5">
+        {% if routes %}
+            {% for r in routes %}
+                <div class="col-md-6 col-xl-4 filterable-item">
+                    <div class="bus-route-card">
+                        <!-- Top Bar: Route ID and Status -->
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="route-badge-num">{{ r.route_number }}</span>
+                            <span class="{{ r.status_class }}">
+                                <i class="fas fa-circle" style="font-size: 0.45rem;"></i> {{ r.status }}
+                            </span>
+                        </div>
+
+                        <!-- Origin to Destination Flow -->
+                        <div class="route-path-flow">
+                            <span class="text-truncate" title="{{ r.origin }}">{{ r.origin }}</span>
+                            <i class="fas fa-arrow-right-long text-secondary"></i>
+                            <span class="text-truncate" title="{{ r.destination }}">{{ r.destination }}</span>
+                        </div>
+
+                        <!-- Route Description -->
+                        <p class="text-secondary small mb-3 flex-grow-1" style="font-size: 0.8rem; line-height: 1.45;">
+                            {{ r.description }}
+                        </p>
+
+                        <!-- Key Bus Stops List -->
+                        <div class="mb-3">
+                            <div class="small fw-semibold text-muted mb-1" style="font-size: 0.72rem;">
+                                <i class="fas fa-map-pin text-danger me-1"></i> KEY BUS STOPS:
+                            </div>
+                            <div class="stops-scroll-box">
+                                {% for stop in r.stops_list %}
+                                    <span class="stop-chip">{{ stop }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Footer: Operating Agency & Active Notices Action -->
+                        <div class="d-flex align-items-center justify-content-between pt-2 border-top mt-auto">
+                            <span class="small text-muted" style="font-size: 0.72rem;">
+                                <i class="fas fa-building text-secondary me-1"></i> {{ r.operating_agency }}
+                            </span>
+                            <div>
+                                {% if r.active_notices_count > 0 %}
+                                    <a href="{{ url_for('notices', route=r.route_id, status='ACTIVE') }}" class="btn btn-sm btn-danger py-0 px-2 fw-semibold" style="font-size: 0.75rem;">
+                                        <i class="fas fa-triangle-exclamation me-1"></i> {{ r.active_notices_count }} Notice
+                                    </a>
+                                {% else %}
+                                    <a href="{{ url_for('notices', route=r.route_id) }}" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.75rem;">
+                                        <i class="fas fa-file-lines me-1"></i> Notices
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="p-5 text-center bg-white rounded-3 border">
+                    <i class="fas fa-bus-slash fa-3x text-secondary mb-3"></i>
+                    <h5>No Salem Bus Routes Matched Your Query</h5>
+                    <p class="text-muted small">Try searching for other Salem locations like 'Five Roads', 'Hasthampatti', or 'Suramangalam'.</p>
+                    <a href="{{ url_for('routes') }}" class="btn btn-sm btn-outline-primary">Clear Filters</a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Verified Salem Bus Stops Reference Directory -->
+    <div class="transit-panel">
+        <div class="transit-panel-header">
+            <h5 class="transit-panel-title">
+                <i class="fas fa-map-location-dot text-cyan"></i> Verified Salem City Bus Stops Directory
+            </h5>
+            <span class="badge bg-light text-dark border small">{{ bus_stops|length }} Major Stops Cataloged</span>
+        </div>
+        <div class="transit-panel-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 small">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Stop Name</th>
+                            <th>Salem Area</th>
+                            <th>Key Landmark</th>
+                            <th>Connecting City Bus Routes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in bus_stops %}
+                            <tr>
+                                <td class="ps-3 fw-bold text-dark">{{ s.stop_name }}</td>
+                                <td><span class="badge bg-light text-dark border">{{ s.area_name }}</span></td>
+                                <td class="text-muted">{{ s.landmark or 'Central Hub' }}</td>
+                                <td>
+                                    {% for r in s.connecting_routes.split(',') %}
+                                        <a href="{{ url_for('routes', q=r.strip()) }}" class="badge bg-dark text-cyan text-decoration-none me-1">
+                                            Route {{ r.strip() }}
+                                        </a>
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

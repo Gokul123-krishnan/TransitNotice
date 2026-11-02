@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block title %}Transit Notices & Advisories – TransitNotice Salem{% endblock %}
+
+{% block content %}
+<div class="notices-page-container">
+
+    <!-- Header -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <h2 class="fw-bold mb-1" style="color: var(--primary-navy); letter-spacing: -0.02em;">
+                Salem Bus Transit Notices & Advisories
+            </h2>
+            <p class="text-muted mb-0 small">
+                Official public transport announcements, temporary cancellations, road closures, and route diversions for <strong>Salem City</strong>.
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-white text-dark border p-2 small">
+                Showing <strong>{{ notices|length }}</strong> Notices
+            </span>
+        </div>
+    </div>
+
+    <!-- Comprehensive Filter Panel (Requirement 3.E) -->
+    <div class="transit-panel mb-4 shadow-sm">
+        <div class="transit-panel-header bg-light">
+            <h6 class="mb-0 fw-bold text-dark small">
+                <i class="fas fa-sliders text-cyan me-1"></i> Multi-Criteria Search & Filtering
+            </h6>
+            {% if filters.q or filters.route or filters.area or filters.notice_type or filters.status != 'ALL' or filters.origin or filters.destination or filters.date %}
+                <a href="{{ url_for('notices') }}" class="btn btn-sm btn-outline-danger py-0 px-2 small" style="font-size: 0.75rem;">
+                    <i class="fas fa-xmark me-1"></i> Clear All Filters
+                </a>
+            {% endif %}
+        </div>
+        <div class="transit-panel-body p-3">
+            <!-- Helpful Search Tips & Quick Clickable Examples -->
+            <div class="p-2 mb-3 bg-light rounded border">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                    <span class="small text-secondary" style="font-size: 0.78rem;">
+                        <i class="fas fa-lightbulb text-warning me-1"></i>
+                        <strong>Search Tip:</strong> Filters combine together. You only need to fill in <strong>1 or 2 fields</strong> (e.g. just Route OR just Area) rather than all boxes.
+                    </span>
+                    <span class="text-muted small" style="font-size: 0.72rem;">Try clicking an example:</span>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-1">
+                    <span class="badge bg-dark text-cyan small me-1">Click to Try:</span>
+                    <a href="{{ url_for('notices', route='13') }}" class="badge text-decoration-none bg-white text-dark border">
+                        <i class="fas fa-route text-cyan me-1"></i> Route 13
+                    </a>
+                    <a href="{{ url_for('notices', area='Five Roads') }}" class="badge text-decoration-none bg-white text-dark border">
+                        <i class="fas fa-location-dot text-danger me-1"></i> Five Roads
+                    </a>
+                    <a href="{{ url_for('notices', area='Ammapet') }}" class="badge text-decoration-none bg-white text-dark border">
+                        <i class="fas fa-location-dot text-danger me-1"></i> Ammapet
+                    </a>
+                    <a href="{{ url_for('notices', route='1') }}" class="badge text-decoration-none bg-white text-dark border">
+                        <i class="fas fa-route text-cyan me-1"></i> Route 1
+                    </a>
+                    <a href="{{ url_for('notices', route='21') }}" class="badge text-decoration-none bg-white text-dark border">
+                        <i class="fas fa-route text-cyan me-1"></i> Route 21 (Steel Plant)
+                    </a>
+                    <a href="{{ url_for('notices', notice_type='Route Diversion') }}" class="badge text-decoration-none bg-white text-dark border">
+                        <i class="fas fa-tag text-primary me-1"></i> Diversions Only
+                    </a>
+                    <a href="{{ url_for('notices', status='ACTIVE') }}" class="badge text-decoration-none bg-white text-dark border">
+                        <i class="fas fa-circle text-success me-1"></i> Active Only
+                    </a>
+                </div>
+            </div>
+
+            <form action="{{ url_for('notices') }}" method="GET" class="row g-3">
+                <!-- Keyword search -->
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold text-muted mb-1">Search Keyword / Notice ID</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" name="q" value="{{ filters.q }}" class="form-control" placeholder="Search keywords, culvert, road, route...">
+                    </div>
+                </div>
+
+                <!-- Bus Route filter -->
+                <div class="col-sm-6 col-md-2">
+                    <label class="form-label small fw-semibold text-muted mb-1">Bus Route</label>
+                    <select name="route" class="form-select form-select-sm">
+                        <option value="">All Routes</option>
+                        {% for r in routes %}
+                            <option value="{{ r.route_id }}" {% if filters.route == r.route_id %}selected{% endif %}>
+                                {{ r.route_number }} ({{ r.origin[:12] }}..)
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Salem Area filter -->
+                <div class="col-sm-6 col-md-3">
+                    <label class="form-label small fw-semibold text-muted mb-1">Salem Area / Location</label>
+                    <select name="area" class="form-select form-select-sm">
+                        <option value="">All Salem Locations</option>
+                        {% for a in salem_areas %}
+                            <option value="{{ a }}" {% if filters.area == a %}selected{% endif %}>{{ a }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Announcement Type filter -->
+                <div class="col-sm-6 col-md-3">
+                    <label class="form-label small fw-semibold text-muted mb-1">Announcement Type</label>
+                    <select name="notice_type" class="form-select form-select-sm">
+                        <option value="">All Types</option>
+                        <option value="Route Diversion" {% if filters.notice_type == 'Route Diversion' %}selected{% endif %}>Route Diversion</option>
+                        <option value="Temporary Cancellation" {% if filters.notice_type == 'Temporary Cancellation' %}selected{% endif %}>Temporary Cancellation</option>
+                        <option value="Service Interruption" {% if filters.notice_type == 'Service Interruption' %}selected{% endif %}>Service Interruption</option>
+                        <option value="Planned Maintenance" {% if filters.notice_type == 'Planned Maintenance' %}selected{% endif %}>Planned Maintenance</option>
+                        <option value="Road Closure" {% if filters.notice_type == 'Road Closure' %}selected{% endif %}>Road Closure</option>
+                        <option value="Service Restoration" {% if filters.notice_type == 'Service Restoration' %}selected{% endif %}>Service Restoration</option>
+                    </select>
+                </div>
+
+                <!-- Status filter -->
+                <div class="col-sm-6 col-md-3">
+                    <label class="form-label small fw-semibold text-muted mb-1">Notice Status</label>
+                    <select name="status" class="form-select form-select-sm">
+                        <option value="ALL" {% if filters.status == 'ALL' %}selected{% endif %}>All Statuses</option>
+                        <option value="ACTIVE" {% if filters.status == 'ACTIVE' %}selected{% endif %}>Active (Live Now)</option>
+                        <option value="UPCOMING" {% if filters.status == 'UPCOMING' %}selected{% endif %}>Upcoming</option>
+                        <option value="EXPIRED" {% if filters.status == 'EXPIRED' %}selected{% endif %}>Expired</option>
+                        <option value="CANCELLED" {% if filters.status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+                        <option value="RESTORED" {% if filters.status == 'RESTORED' %}selected{% endif %}>Service Restored</option>
+                    </select>
+                </div>
+
+                <!-- Starting Point (Origin) filter -->
+                <div class="col-sm-6 col-md-3">
+                    <label class="form-label small fw-semibold text-muted mb-1">Starting Point (Origin)</label>
+                    <input type="text" name="origin" value="{{ filters.origin }}" class="form-control form-control-sm" placeholder="e.g. Salem Junction, Old Bus Stand">
+                </div>
+
+                <!-- Destination filter -->
+                <div class="col-sm-6 col-md-3">
+                    <label class="form-label small fw-semibold text-muted mb-1">Destination</label>
+                    <input type="text" name="destination" value="{{ filters.destination }}" class="form-control form-control-sm" placeholder="e.g. Steel Plant, Gorimedu">
+                </div>
+
+                <!-- Valid on Date filter -->
+                <div class="col-sm-6 col-md-3">
+                    <label class="form-label small fw-semibold text-muted mb-1">Active on Specific Date</label>
+                    <input type="date" name="date" value="{{ filters.date }}" class="form-control form-control-sm">
+                </div>
+
+                <!-- Submit Button -->
+                <div class="col-12 d-flex justify-content-end gap-2 pt-2 border-top">
+                    <button type="submit" class="btn btn-primary btn-sm px-4 fw-semibold" style="background-color: var(--cyan-primary); border-color: var(--cyan-primary);">
+                        <i class="fas fa-filter me-1"></i> Apply Filters
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notices Listing -->
+    <div class="notices-list">
+        {% if notices %}
+            {% for n in notices %}
+                <div class="notice-card filterable-item">
+                    <div class="notice-card-header">
+                        <div>
+                            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                <span class="{{ n.status_badge_class }}">
+                                    <i class="fas fa-circle" style="font-size: 0.45rem;"></i> {{ n.effective_status }}
+                                </span>
+                                <span class="{{ n.alert_badge_class }}">
+                                    {{ n.alert_status }}
+                                </span>
+                                <span class="badge bg-light text-dark border">
+                                    <i class="fas fa-tag text-cyan me-1"></i> {{ n.notice_type }}
+                                </span>
+                                {% if n.is_sample %}
+                                    <span class="badge-sample-data" title="Demonstration notice for system testing">
+                                        Demonstration Data
+                                    </span>
+                                {% else %}
+                                    <span class="badge-official-data">
+                                        <i class="fas fa-shield-check"></i> Official Live Notice
+                                    </span>
+                                {% endif %}
+                                {% if n.is_stale %}
+                                    <span class="badge bg-warning text-dark border" title="Notice has not been re-verified in over 48 hours">
+                                        <i class="fas fa-triangle-exclamation"></i> Stale Record (>48h)
+                                    </span>
+                                {% endif %}
+                                <span class="text-muted small ms-auto font-monospace">{{ n.notice_id }}</span>
+                            </div>
+
+                            <h4 class="notice-title">
+                                <a href="{{ url_for('notice_details', notice_id=n.notice_id) }}">
+                                    {{ n.summary }}
+                                </a>
+                            </h4>
+                        </div>
+                    </div>
+
+                    <p class="text-secondary small mb-3" style="line-height: 1.55;">
+                        {{ n.description }}
+                    </p>
+
+                    <!-- Notice Meta Grid -->
+                    <div class="row g-2 p-2 bg-light rounded-2 border mb-3 small" style="font-size: 0.78rem;">
+                        <div class="col-sm-6 col-md-3">
+                            <span class="text-muted">Transport Authority:</span><br>
+                            <strong class="text-dark">{{ n.agency_name or n.agency }}</strong>
+                        </div>
+                        <div class="col-sm-6 col-md-3">
+                            <span class="text-muted">Affected Bus Routes:</span><br>
+                            {% for r in n.affected_routes_list %}
+                                <span class="route-pill">Route {{ r }}</span>
+                            {% endfor %}
+                        </div>
+                        <div class="col-sm-6 col-md-3">
+                            <span class="text-muted">Affected Salem Area:</span><br>
+                            <span class="area-pill">{{ n.area }}</span>
+                        </div>
+                        <div class="col-sm-6 col-md-3">
+                            <span class="text-muted">Validity Window:</span><br>
+                            <span class="text-dark">{{ n.formatted_valid_from }} &rarr; <strong>{{ n.formatted_valid_to }}</strong></span>
+                        </div>
+                    </div>
+
+                    <!-- Card Actions & Verification Info -->
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-2 border-top">
+                        <div class="text-muted small" style="font-size: 0.73rem;">
+                            <i class="fas fa-clock-rotate-left me-1"></i> Last Verified: {{ n.formatted_last_confirmed }}
+                            {% if n.revision_id > 1 %}
+                                &bull; <span class="badge bg-secondary text-white">Revision {{ n.revision_id }}</span>
+                            {% endif %}
+                            {% if n.change_summary %}
+                                &bull; <em>{{ n.change_summary }}</em>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <button class="btn btn-sm btn-outline-secondary copy-notice-link-btn py-0 px-2" data-notice-id="{{ n.notice_id }}" title="Copy notice link" style="font-size: 0.75rem;">
+                                <i class="fas fa-share-nodes"></i> Share
+                            </button>
+                            {% if n.source_url %}
+                                <a href="{{ n.source_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.75rem;">
+                                    <i class="fas fa-external-link-alt me-1"></i> Source Link
+                                </a>
+                            {% endif %}
+                            <a href="{{ url_for('notice_details', notice_id=n.notice_id) }}" class="btn btn-sm btn-primary py-0 px-2 fw-semibold" style="font-size: 0.75rem; background-color: var(--cyan-primary); border-color: var(--cyan-primary);">
+                                Notice Details & Timeline <i class="fas fa-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="p-5 text-center bg-white rounded-3 border shadow-sm">
+                <i class="fas fa-clipboard-question fa-3x text-secondary mb-3"></i>
+                <h5 class="fw-bold text-dark">No Transit Notices Match Your Combined Filters</h5>
+                <p class="text-muted small mx-auto mb-3" style="max-width: 550px;">
+                    The search filters combine using <strong>AND</strong> logic. If you specify multiple conditions (e.g. <em>Route 1</em> together with <em>Destination: Steel Plant</em>), they must all be true at once. Try searching with just <strong>one or two fields</strong>.
+                </p>
+                <div class="d-flex flex-wrap justify-content-center gap-2">
+                    <a href="{{ url_for('notices') }}" class="btn btn-sm btn-primary" style="background-color: var(--primary-navy); border-color: var(--primary-navy);">
+                        <i class="fas fa-rotate-left me-1"></i> Clear All Filters (View All)
+                    </a>
+                    <a href="{{ url_for('notices', route='13') }}" class="btn btn-sm btn-outline-cyan" style="color: var(--cyan-primary); border-color: var(--cyan-primary);">
+                        <i class="fas fa-route me-1"></i> Search Route 13
+                    </a>
+                    <a href="{{ url_for('notices', area='Five Roads') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-location-dot me-1 text-danger"></i> Search Five Roads
+                    </a>
+                    <a href="{{ url_for('notices', area='Ammapet') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-location-dot me-1 text-danger"></i> Search Ammapet
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block title %}{{ notice.notice_id }} – Transit Notice Details{% endblock %}
+
+{% block content %}
+<div class="notice-detail-container">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb small">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}" class="text-decoration-none">Home</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('notices') }}" class="text-decoration-none">Transit Notices</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ notice.notice_id }}</li>
+        </ol>
+    </nav>
+
+    <!-- Stale Data Alert (Validation Rule) -->
+    {% if notice.is_stale %}
+        <div class="alert alert-warning d-flex align-items-center gap-2 mb-4 shadow-sm" role="alert">
+            <i class="fas fa-triangle-exclamation fs-4 text-warning"></i>
+            <div>
+                <strong>Notice Staleness Advisory:</strong>
+                This announcement has not been re-confirmed by automated verification within the past 48 hours. Commuters should verify with station controllers.
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="row g-4">
+        <!-- Main Notice Column -->
+        <div class="col-lg-8">
+            <div class="transit-panel">
+                <div class="transit-panel-body p-4">
+                    <!-- Top Status Strip -->
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <span class="{{ notice.status_badge_class }} px-3 py-1">
+                                <i class="fas fa-circle" style="font-size: 0.5rem;"></i> {{ notice.effective_status }}
+                            </span>
+                            <span class="{{ notice.alert_badge_class }} px-2 py-1">
+                                {{ notice.alert_status }}
+                            </span>
+                            <span class="badge bg-light text-dark border px-2 py-1">
+                                <i class="fas fa-tag text-cyan me-1"></i> {{ notice.notice_type }}
+                            </span>
+                            {% if notice.is_sample %}
+                                <span class="badge-sample-data" title="Demonstration notice for system evaluation">
+                                    Demonstration Notice
+                                </span>
+                            {% else %}
+                                <span class="badge-official-data">
+                                    <i class="fas fa-shield-check"></i> Official Live Notice
+                                </span>
+                            {% endif %}
+                        </div>
+                        <div class="font-monospace fw-bold text-muted small">
+                            ID: {{ notice.notice_id }}
+                        </div>
+                    </div>
+
+                    <!-- Notice Summary / Title -->
+                    <h3 class="fw-bold mb-3" style="color: var(--primary-navy); line-height: 1.35;">
+                        {{ notice.summary }}
+                    </h3>
+
+                    <!-- Detailed Description -->
+                    <div class="p-3 bg-light rounded-3 border mb-4">
+                        <h6 class="fw-bold text-dark small text-uppercase mb-2">
+                            <i class="fas fa-align-left text-cyan me-1"></i> Official Announcement Details
+                        </h6>
+                        <p class="mb-0 text-secondary" style="font-size: 0.92rem; line-height: 1.65;">
+                            {{ notice.description }}
+                        </p>
+                    </div>
+
+                    <!-- Validity & Schedule Strip -->
+                    <div class="row g-3 p-3 bg-white border rounded-3 mb-4">
+                        <div class="col-sm-6 col-md-3">
+                            <div class="text-muted small">Published Date</div>
+                            <strong class="text-dark small">{{ notice.formatted_published_at }}</strong>
+                        </div>
+                        <div class="col-sm-6 col-md-3">
+                            <div class="text-muted small">Effective From</div>
+                            <strong class="text-dark small">{{ notice.formatted_valid_from }}</strong>
+                        </div>
+                        <div class="col-sm-6 col-md-3">
+                            <div class="text-muted small">Effective Until</div>
+                            <strong class="text-primary small">{{ notice.formatted_valid_to }}</strong>
+                        </div>
+                        <div class="col-sm-6 col-md-3">
+                            <div class="text-muted small">Last Verified</div>
+                            <strong class="text-success small">{{ notice.formatted_last_confirmed }}</strong>
+                        </div>
+                    </div>
+
+                    <!-- Affected Bus Routes -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold text-dark small text-uppercase mb-2">
+                            <i class="fas fa-route text-cyan me-1"></i> Affected Salem Bus Corridors
+                        </h6>
+                        {% if affected_routes %}
+                            <div class="row g-2">
+                                {% for r in affected_routes %}
+                                    <div class="col-md-6">
+                                        <div class="p-2 border rounded-2 bg-light d-flex align-items-center justify-content-between">
+                                            <div>
+                                                <span class="route-badge-num me-2" style="font-size: 0.9rem;">{{ r.route_number }}</span>
+                                                <span class="small text-muted">{{ r.origin }} &rarr; {{ r.destination }}</span>
+                                            </div>
+                                            <span class="{{ r.status_class }}">{{ r.status }}</span>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for r in notice.affected_routes_list %}
+                                    <span class="route-pill fs-6 p-2">Route {{ r }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Affected Salem Areas -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold text-dark small text-uppercase mb-2">
+                            <i class="fas fa-location-dot text-danger me-1"></i> Affected Salem Locations
+                        </h6>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for a in notice.affected_areas_list %}
+                                <span class="area-pill fs-6 p-2"><i class="fas fa-map-pin me-1 text-danger"></i>{{ a }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Source Link & Sharing Actions -->
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 border-top">
+                        <div class="d-flex align-items-center gap-2">
+                            <button class="btn btn-sm btn-outline-secondary copy-notice-link-btn" data-notice-id="{{ notice.notice_id }}">
+                                <i class="fas fa-share-nodes me-1"></i> Share Advisory
+                            </button>
+                            {% if session.get('admin_logged_in') %}
+                                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-pen-to-square me-1"></i> Edit in Admin
+                                </a>
+                            {% endif %}
+                        </div>
+                        {% if notice.source_url %}
+                            <a href="{{ notice.source_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-dark" style="background-color: var(--primary-navy);">
+                                <i class="fas fa-arrow-up-right-from-square me-1"></i> View Official Source Advisory
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notice Revision History Timeline (Requirement 3.C & 3.I) -->
+            <div class="transit-panel">
+                <div class="transit-panel-header">
+                    <h5 class="transit-panel-title">
+                        <i class="fas fa-timeline text-cyan"></i> Advisory Revision History & Audit Trail
+                    </h5>
+                    <span class="badge bg-secondary text-white">{{ history|length }} Revisions</span>
+                </div>
+                <div class="transit-panel-body p-4">
+                    {% if history %}
+                        <div class="timeline-track">
+                            {% for h in history %}
+                                <div class="timeline-item">
+                                    <div class="timeline-node">
+                                        {{ h.revision_id }}
+                                    </div>
+                                    <div class="timeline-content">
+                                        <div class="d-flex align-items-center justify-content-between mb-1">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="badge bg-dark text-cyan">Revision {{ h.revision_id }}</span>
+                                                <span class="badge bg-light text-dark border">{{ h.change_type }}</span>
+                                            </div>
+                                            <span class="text-muted small" style="font-size: 0.72rem;">
+                                                <i class="fas fa-clock me-1"></i> {{ h.modified_at }}
+                                            </span>
+                                        </div>
+                                        <p class="mb-1 text-dark small fw-semibold">
+                                            {{ h.change_notes }}
+                                        </p>
+                                        <div class="text-muted" style="font-size: 0.72rem;">
+                                            <i class="fas fa-user-pen me-1"></i> Recorded by: <strong>{{ h.modified_by }}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted small mb-0">No subsequent revisions recorded. Initial notice is active.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Authority & Integrity Guarantee -->
+        <div class="col-lg-4">
+            <!-- Issuing Authority Card -->
+            <div class="transit-panel mb-4">
+                <div class="transit-panel-header">
+                    <h5 class="transit-panel-title">
+                        <i class="fas fa-building-columns text-cyan"></i> Issuing Transport Authority
+                    </h5>
+                </div>
+                <div class="transit-panel-body p-3">
+                    <h6 class="fw-bold text-dark mb-1">{{ notice.agency_name or notice.agency }}</h6>
+                    <div class="small text-muted mb-3">{{ notice.agency_type or 'Public Transit Regulatory Body' }}</div>
+
+                    {% if notice.agency_contact %}
+                        <div class="p-2 bg-light rounded-2 border mb-3 small" style="font-size: 0.8rem;">
+                            <i class="fas fa-address-book text-secondary me-1"></i> {{ notice.agency_contact }}
+                        </div>
+                    {% endif %}
+
+                    {% if notice.agency_url %}
+                        <a href="{{ notice.agency_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-cyan w-100" style="color: var(--cyan-primary); border-color: var(--cyan-primary);">
+                            <i class="fas fa-globe me-1"></i> Official Portal
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Verification Metadata Card -->
+            <div class="transit-panel">
+                <div class="transit-panel-header">
+                    <h5 class="transit-panel-title">
+                        <i class="fas fa-fingerprint text-secondary"></i> Verification Integrity
+                    </h5>
+                </div>
+                <div class="transit-panel-body p-3 small text-secondary">
+                    <ul class="list-unstyled mb-0" style="line-height: 1.8;">
+                        <li>
+                            <i class="fas fa-hashtag text-muted me-2"></i>
+                            Content Hash:
+                            <div class="font-monospace text-truncate bg-light p-1 rounded border mt-1" style="font-size: 0.7rem;">
+                                {{ notice.content_hash or 'sha256-verified-bulletin' }}
+                            </div>
+                        </li>
+                        <li class="mt-2">
+                            <i class="fas fa-eye text-muted me-2"></i>
+                            Observed At: <strong>{{ notice.observed_at }}</strong>
+                        </li>
+                        <li>
+                            <i class="fas fa-circle-check text-success me-2"></i>
+                            Last Confirmed: <strong>{{ notice.last_confirmed_at }}</strong>
+                        </li>
+                        <li>
+                            <i class="fas fa-map-location-dot text-info me-2"></i>
+                            Boundary: <strong>Salem City, Tamil Nadu</strong>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

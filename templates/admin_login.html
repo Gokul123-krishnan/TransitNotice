@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Administrator Sign In – TransitNotice Salem{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-5">
+    <div class="col-md-6 col-lg-5 col-xl-4">
+        <div class="transit-panel shadow-sm">
+            <div class="transit-panel-header justify-content-center bg-light text-center py-3">
+                <div class="text-center">
+                    <div class="brand-logo-icon mx-auto mb-2" style="width: 42px; height: 42px;">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <h5 class="fw-bold mb-0 text-dark">Transport Officer Portal</h5>
+                    <span class="text-muted small">Salem City Bus Transit Administration</span>
+                </div>
+            </div>
+            <div class="transit-panel-body p-4">
+                <form action="{{ url_for('admin_login') }}" method="POST">
+                    <div class="mb-3">
+                        <label for="username" class="form-label small fw-semibold text-muted">Admin Username</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="fas fa-user text-muted"></i></span>
+                            <input type="text" class="form-control" id="username" name="username" placeholder="Enter administrator username" required autofocus value="admin">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="password" class="form-label small fw-semibold text-muted">Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="fas fa-lock text-muted"></i></span>
+                            <input type="password" class="form-control" id="password" name="password" placeholder="Enter password" required value="admin123">
+                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 fw-semibold py-2" style="background-color: var(--primary-navy); border-color: var(--primary-navy);">
+                        <i class="fas fa-right-to-bracket me-1"></i> Sign In to Dashboard
+                    </button>
+                </form>
+
+                <!-- Demonstration Credentials Alert -->
+                <div class="p-3 bg-light rounded-2 border mt-4 small text-secondary">
+                    <div class="d-flex align-items-center gap-2 mb-1 text-dark fw-bold">
+                        <i class="fas fa-key text-cyan"></i> Default Setup Credentials:
+                    </div>
+                    <div>Username: <code>admin</code></div>
+                    <div>Password: <code>admin123</code></div>
+                    <div class="text-muted mt-1" style="font-size: 0.72rem;">Authorized for TNSTC Salem Commercial & Traffic Police coordinators.</div>
+                </div>
+
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('index') }}" class="small text-decoration-none text-muted">
+                        <i class="fas fa-arrow-left me-1"></i> Return to Public Commuter Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const toggleBtn = document.getElementById('togglePassword');
+    const pwdInput = document.getElementById('password');
+    if (toggleBtn && pwdInput) {
+        toggleBtn.addEventListener('click', () => {
+            const isPassword = pwdInput.type === 'password';
+            pwdInput.type = isPassword ? 'text' : 'password';
+            toggleBtn.innerHTML = isPassword ? '<i class="fas fa-eye-slash"></i>' : '<i class="fas fa-eye"></i>';
+        });
+    }
+</script>
+{% endblock %}

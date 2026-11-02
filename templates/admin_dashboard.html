@@ -1,0 +1,708 @@
+{% extends "base.html" %}
+
+{% block title %}Administrator Dashboard – TransitNotice Salem{% endblock %}
+
+{% block content %}
+<div class="admin-dashboard-container">
+
+    <!-- Admin Welcome Header -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-2 border-bottom">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <h2 class="fw-bold mb-0" style="color: var(--primary-navy); letter-spacing: -0.02em;">
+                    Transit Administration Control Center
+                </h2>
+                <span class="badge bg-primary text-white">{{ session.get('admin_role', 'Administrator') }}</span>
+            </div>
+            <p class="text-muted small mb-0">
+                Logged in as <strong>{{ session.get('admin_name') }}</strong> ({{ session.get('admin_user') }}). Full management of Salem city transit advisories, bus routes, and scraper engines.
+            </p>
+        </div>
+
+        <!-- Action Controls -->
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <!-- Trigger Manual Scraper Button -->
+            <form action="{{ url_for('admin_trigger_scraper') }}" method="POST" class="d-inline">
+                <button type="submit" class="btn btn-outline-cyan btn-sm d-flex align-items-center gap-1" style="color: var(--cyan-primary); border-color: var(--cyan-primary);">
+                    <i class="fas fa-arrows-rotate"></i>
+                    <span>Trigger Scraper Refresh</span>
+                </button>
+            </form>
+
+            <!-- Add Notice Button -->
+            <button type="button" class="btn btn-primary btn-sm d-flex align-items-center gap-1 shadow-sm" style="background-color: var(--primary-navy); border-color: var(--primary-navy);" data-bs-toggle="modal" data-bs-target="#createNoticeModal">
+                <i class="fas fa-plus-circle"></i>
+                <span>Publish New Notice</span>
+            </button>
+
+            <!-- Add Route Button -->
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#manageRouteModal">
+                <i class="fas fa-route me-1"></i> Add / Edit Route
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Metrics Strip -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-lg-3">
+            <div class="metric-card card-cyan py-3">
+                <div class="metric-title">Total Bus Notices</div>
+                <div class="metric-value fs-2">{{ stats.total_notices }}</div>
+                <div class="small text-muted">Across all Salem sectors</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="metric-card card-emerald py-3">
+                <div class="metric-title">Active Service Alerts</div>
+                <div class="metric-value fs-2 text-success">{{ stats.active_alerts }}</div>
+                <div class="small text-muted">Current live advisories</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="metric-card card-amber py-3">
+                <div class="metric-title">Disrupted Routes</div>
+                <div class="metric-value fs-2 text-warning">{{ stats.disrupted_routes }} / {{ stats.total_routes }}</div>
+                <div class="small text-muted">Diverted or suspended</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="metric-card card-slate py-3">
+                <div class="metric-title">Scraper Status</div>
+                <div class="d-flex align-items-center gap-2 mt-1">
+                    <span class="live-pulse-dot" style="background-color: #06b6d4; box-shadow: 0 0 8px #06b6d4;"></span>
+                    <strong class="text-dark">Auto-Sync (15m)</strong>
+                </div>
+                <div class="small text-muted mt-1">Last: {{ stats.last_verified_at }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Tabs -->
+    <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-semibold" id="notices-tab" data-bs-toggle="tab" data-bs-target="#notices-tab-pane" type="button" role="tab">
+                <i class="fas fa-bullhorn text-cyan me-1"></i> Manage Transit Notices ({{ notices|length }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-semibold" id="routes-tab" data-bs-toggle="tab" data-bs-target="#routes-tab-pane" type="button" role="tab">
+                <i class="fas fa-route text-cyan me-1"></i> Salem Bus Routes & Status ({{ routes|length }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-semibold" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs-tab-pane" type="button" role="tab">
+                <i class="fas fa-clipboard-list text-cyan me-1"></i> Web Scraper Audit Logs
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-semibold" id="demo-tab" data-bs-toggle="tab" data-bs-target="#demo-tab-pane" type="button" role="tab">
+                <i class="fas fa-satellite-dish text-cyan me-1"></i> Notification Broadcast Test
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="adminTabsContent">
+        <!-- ================= TAB 1: NOTICES MANAGEMENT ================= -->
+        <div class="tab-pane fade show active" id="notices-tab-pane" role="tabpanel">
+            <div class="transit-panel">
+                <div class="transit-panel-header">
+                    <h5 class="transit-panel-title">
+                        <i class="fas fa-list-check text-cyan"></i> Salem Transit Advisories Directory
+                    </h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="text" id="quick-client-filter" class="form-control form-control-sm" placeholder="Quick filter notices..." style="width: 220px;">
+                    </div>
+                </div>
+                <div class="transit-panel-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 small">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">ID / Authority</th>
+                                    <th>Summary & Scope</th>
+                                    <th>Route(s) & Area</th>
+                                    <th>Validity Window</th>
+                                    <th>Status</th>
+                                    <th>Rev</th>
+                                    <th class="text-end pe-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for n in notices %}
+                                    <tr class="filterable-item">
+                                        <td class="ps-3">
+                                            <span class="font-monospace fw-bold text-dark">{{ n.notice_id }}</span><br>
+                                            <span class="badge bg-light text-muted border" style="font-size: 0.68rem;">{{ n.agency }}</span>
+                                            {% if n.is_sample %}
+                                                <span class="badge-sample-data" style="font-size: 0.65rem;">Sample</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="max-width: 320px;">
+                                            <div class="fw-bold text-dark text-truncate" title="{{ n.summary }}">
+                                                <a href="{{ url_for('notice_details', notice_id=n.notice_id) }}" class="text-decoration-none text-dark">
+                                                    {{ n.summary }}
+                                                </a>
+                                            </div>
+                                            <span class="badge bg-light text-dark border me-1">{{ n.notice_type }}</span>
+                                            <span class="{{ n.alert_badge_class }}">{{ n.alert_status }}</span>
+                                        </td>
+                                        <td>
+                                            <div class="mb-1">
+                                                {% for r in n.affected_routes_list %}
+                                                    <span class="route-pill">R{{ r }}</span>
+                                                {% endfor %}
+                                            </div>
+                                            <span class="area-pill">{{ n.area }}</span>
+                                        </td>
+                                        <td style="font-size: 0.75rem;">
+                                            <div>{{ n.formatted_valid_from }}</div>
+                                            <div class="text-muted">&darr; until</div>
+                                            <strong class="text-dark">{{ n.formatted_valid_to }}</strong>
+                                        </td>
+                                        <td>
+                                            <span class="{{ n.status_badge_class }}">
+                                                {{ n.effective_status }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary text-white">v{{ n.revision_id }}</span>
+                                        </td>
+                                        <td class="text-end pe-3">
+                                            <div class="btn-group btn-group-sm">
+                                                <button type="button" class="btn btn-outline-primary edit-notice-btn"
+                                                    data-bs-toggle="modal" data-bs-target="#editNoticeModal"
+                                                    data-id="{{ n.notice_id }}"
+                                                    data-agency="{{ n.agency }}"
+                                                    data-route="{{ n.route_id }}"
+                                                    data-area="{{ n.area }}"
+                                                    data-type="{{ n.notice_type }}"
+                                                    data-summary="{{ n.summary }}"
+                                                    data-desc="{{ n.description }}"
+                                                    data-validfrom="{{ n.valid_from }}"
+                                                    data-validto="{{ n.valid_to }}"
+                                                    data-status="{{ n.status }}"
+                                                    data-alert="{{ n.alert_status }}"
+                                                    data-source="{{ n.source_url }}"
+                                                    title="Edit / Extend Notice">
+                                                    <i class="fas fa-pencil"></i>
+                                                </button>
+                                                <form action="{{ url_for('admin_delete_notice', notice_id=n.notice_id) }}" method="POST" onsubmit="return confirm('Permanently delete notice {{ n.notice_id }}?');" style="display:inline;">
+                                                    <button type="submit" class="btn btn-outline-danger" title="Delete Notice">
+                                                        <i class="fas fa-trash-can"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 2: ROUTES MANAGEMENT ================= -->
+        <div class="tab-pane fade" id="routes-tab-pane" role="tabpanel">
+            <div class="transit-panel">
+                <div class="transit-panel-header">
+                    <h5 class="transit-panel-title">
+                        <i class="fas fa-bus text-cyan"></i> Salem Bus Corridors & Service Status Controls
+                    </h5>
+                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#manageRouteModal">
+                        <i class="fas fa-plus me-1"></i> Add New Route
+                    </button>
+                </div>
+                <div class="transit-panel-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 small">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Route #</th>
+                                    <th>Origin & Destination</th>
+                                    <th>Key Stops</th>
+                                    <th>Operating Agency</th>
+                                    <th>Status Override</th>
+                                    <th class="text-end pe-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for r in routes %}
+                                    <tr>
+                                        <td class="ps-3">
+                                            <span class="route-badge-num">{{ r.route_number }}</span>
+                                        </td>
+                                        <td>
+                                            <div class="fw-bold text-dark">{{ r.origin }} &rarr; {{ r.destination }}</div>
+                                            <div class="text-muted small" style="font-size: 0.73rem;">{{ r.description[:60] }}...</div>
+                                        </td>
+                                        <td style="max-width: 250px;">
+                                            <span class="text-muted" style="font-size: 0.75rem;">{{ r.key_stops }}</span>
+                                        </td>
+                                        <td>{{ r.operating_agency }}</td>
+                                        <td>
+                                            <!-- Route Status Changer -->
+                                            <form action="{{ url_for('admin_change_route_status', route_id=r.route_id) }}" method="POST" class="d-flex align-items-center gap-1">
+                                                <select name="status" class="form-select form-select-sm" style="width: 125px;" onchange="this.form.submit()">
+                                                    <option value="NORMAL" {% if r.status == 'NORMAL' and not r.is_manual_override %}selected{% endif %}>Normal</option>
+                                                    <option value="DIVERTED" {% if r.status == 'DIVERTED' %}selected{% endif %}>Diverted</option>
+                                                    <option value="SUSPENDED" {% if r.status == 'SUSPENDED' %}selected{% endif %}>Suspended</option>
+                                                    <option value="PARTIAL" {% if r.status == 'PARTIAL' %}selected{% endif %}>Partial</option>
+                                                    <option value="AUTO">Auto (Sync)</option>
+                                                </select>
+                                                {% if r.is_manual_override %}
+                                                    <span class="badge bg-secondary" title="Manually overridden by administrator" style="font-size: 0.65rem;">Manual</span>
+                                                {% endif %}
+                                            </form>
+                                        </td>
+                                        <td class="text-end pe-3">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary edit-route-btn"
+                                                data-bs-toggle="modal" data-bs-target="#manageRouteModal"
+                                                data-id="{{ r.route_id }}"
+                                                data-number="{{ r.route_number }}"
+                                                data-origin="{{ r.origin }}"
+                                                data-dest="{{ r.destination }}"
+                                                data-stops="{{ r.key_stops }}"
+                                                data-desc="{{ r.description }}"
+                                                data-agency="{{ r.operating_agency }}"
+                                                data-status="{{ r.status }}"
+                                                title="Edit Route Info">
+                                                <i class="fas fa-pencil"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 3: SCRAPER AUDIT LOGS ================= -->
+        <div class="tab-pane fade" id="logs-tab-pane" role="tabpanel">
+            <div class="transit-panel">
+                <div class="transit-panel-header">
+                    <h5 class="transit-panel-title">
+                        <i class="fas fa-terminal text-cyan"></i> Automated Scraper Execution History & Audits
+                    </h5>
+                    <form action="{{ url_for('admin_trigger_scraper') }}" method="POST">
+                        <button type="submit" class="btn btn-sm btn-dark" style="background-color: var(--primary-navy);">
+                            <i class="fas fa-arrows-rotate me-1"></i> Trigger Run Now
+                        </button>
+                    </form>
+                </div>
+                <div class="transit-panel-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 small">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Execution Time</th>
+                                    <th>Monitored Public Source</th>
+                                    <th>Status</th>
+                                    <th>Found</th>
+                                    <th>Added</th>
+                                    <th>Updated</th>
+                                    <th>Response (ms)</th>
+                                    <th>Diagnostic Messages</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if scraper_logs %}
+                                    {% for log in scraper_logs %}
+                                        <tr>
+                                            <td class="ps-3 font-monospace small">{{ log.checked_at }}</td>
+                                            <td>
+                                                <strong class="text-dark">{{ log.source_name }}</strong><br>
+                                                <a href="{{ log.url }}" target="_blank" class="text-muted small text-decoration-none" style="font-size: 0.7rem;">
+                                                    {{ log.url }}
+                                                </a>
+                                            </td>
+                                            <td>
+                                                {% if log.status == 'SUCCESS' %}
+                                                    <span class="badge bg-success">SUCCESS</span>
+                                                {% elif log.status == 'WARNING' %}
+                                                    <span class="badge bg-warning text-dark">WARNING</span>
+                                                {% else %}
+                                                    <span class="badge bg-danger">FAILED</span>
+                                                {% endif %}
+                                            </td>
+                                            <td><span class="badge bg-light text-dark border">{{ log.notices_found }}</span></td>
+                                            <td><span class="badge bg-info text-dark">+{{ log.notices_added }}</span></td>
+                                            <td><span class="badge bg-secondary text-white">~{{ log.notices_updated }}</span></td>
+                                            <td><span class="font-monospace">{{ log.response_time_ms }} ms</span></td>
+                                            <td class="small text-secondary" style="max-width: 250px;">
+                                                {{ log.error_message or 'Nominal verification. No network anomalies.' }}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="8" class="text-center p-4 text-muted">No scraper execution logs yet recorded.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 4: DEMONSTRATION NOTIFICATION TOOL ================= -->
+        <div class="tab-pane fade" id="demo-tab-pane" role="tabpanel">
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="transit-panel">
+                        <div class="transit-panel-header">
+                            <h5 class="transit-panel-title">
+                                <i class="fas fa-bullhorn text-cyan"></i> In-Application Notification Broadcaster
+                            </h5>
+                        </div>
+                        <div class="transit-panel-body p-4">
+                            <p class="text-secondary small mb-3">
+                                Test the commuter in-app notification tray, alert badge counter, and duplicate notification suppression mechanism safely.
+                            </p>
+                            <form action="{{ url_for('admin_broadcast_demo') }}" method="POST">
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold text-muted">Select Advisory Notification Type</label>
+                                    <select name="demo_type" class="form-select">
+                                        <option value="NEW_NOTICE">New Transit Advisory (Warning)</option>
+                                        <option value="MODIFIED_ROUTE">Route Diversion Updated (Info)</option>
+                                        <option value="EXTENDED_INTERRUPTION">Advisory Extended (Warning)</option>
+                                        <option value="CANCELLED_NOTICE">Temporary Trip Cancellation (Critical)</option>
+                                        <option value="RESTORED_SERVICE">Service Restored to Normal (Resolved)</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary fw-semibold" style="background-color: var(--primary-navy); border-color: var(--primary-navy);">
+                                    <i class="fas fa-paper-plane me-1"></i> Broadcast Demonstration Alert
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="transit-panel">
+                        <div class="transit-panel-header">
+                            <h5 class="transit-panel-title">
+                                <i class="fas fa-shield-halved text-success"></i> Notification Safety Rules
+                            </h5>
+                        </div>
+                        <div class="transit-panel-body p-4 small text-secondary" style="line-height: 1.7;">
+                            <ul class="list-unstyled mb-0">
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    <strong>Duplicate Prevention:</strong> Prevents multiple identical alerts for the same notice ID within the cooling window.
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    <strong>Real-Time Bell Update:</strong> Notification tray reflects changes immediately via AJAX read APIs.
+                                </li>
+                                <li class="mb-0">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    <strong>Audit Record:</strong> All created notifications are persisted in the <code>notifications</code> table.
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ================= MODAL: CREATE NOTICE ================= -->
+<div class="modal fade" id="createNoticeModal" tabindex="-1" aria-labelledby="createNoticeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form action="{{ url_for('admin_create_notice') }}" method="POST">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fs-6 fw-bold" id="createNoticeModalLabel">
+                        <i class="fas fa-bullhorn text-cyan me-1"></i> Issue Official Transit Notice (Salem City)
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Issuing Authority</label>
+                            <select name="agency" class="form-select" required>
+                                {% for ag in agencies %}
+                                    <option value="{{ ag.agency_id }}">{{ ag.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Announcement Type</label>
+                            <select name="notice_type" class="form-select" required>
+                                <optgroup label="Direct Status Impacts">
+                                    <option value="DIVERTED">DIVERTED – Route Diversion</option>
+                                    <option value="SUSPENDED">SUSPENDED – Temporary Cancellation</option>
+                                    <option value="PARTIAL">PARTIAL – Partial Service / Maintenance</option>
+                                </optgroup>
+                                <optgroup label="Standard Announcement Types">
+                                    <option value="Route Diversion" selected>Route Diversion</option>
+                                    <option value="Temporary Cancellation">Temporary Cancellation</option>
+                                    <option value="Service Interruption">Service Interruption</option>
+                                    <option value="Road Closure">Road Closure</option>
+                                    <option value="Planned Maintenance">Planned Maintenance</option>
+                                    <option value="Service Restoration">Service Restoration</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Affected Bus Routes (e.g. 13, 33)</label>
+                            <input type="text" name="route_id" class="form-control" placeholder="e.g. 13, 33" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Salem Area / Location</label>
+                            <select name="area" class="form-select" required>
+                                {% for a in salem_areas %}
+                                    <option value="{{ a }}">{{ a }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold text-muted">Notice Summary (Headline)</label>
+                            <input type="text" name="summary" class="form-control" placeholder="Brief concise explanation for passengers" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold text-muted">Full Description & Commuter Instructions</label>
+                            <textarea name="description" class="form-control" rows="3" placeholder="Elaborate on diversion roads, alternative bus boarding points, cause of disruption..."></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Effective Valid From (YYYY-MM-DD HH:MM:SS)</label>
+                            <input type="text" name="valid_from" class="form-control" value="{{ current_time_ist[:10] }} 06:00:00" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Effective Valid To (YYYY-MM-DD HH:MM:SS)</label>
+                            <input type="text" name="valid_to" class="form-control" value="{{ current_time_ist[:10] }} 22:00:00" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Alert Severity</label>
+                            <select name="alert_status" class="form-select">
+                                <option value="WARNING">Warning (Amber)</option>
+                                <option value="CRITICAL">Critical (Red)</option>
+                                <option value="INFO">Informational (Blue)</option>
+                                <option value="RESOLVED">Resolved (Green)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Notice Status</label>
+                            <select name="status" class="form-select">
+                                <option value="ACTIVE" selected>ACTIVE (Live Now)</option>
+                                <option value="PARTIAL">PARTIAL (Partial Service)</option>
+                                <option value="DIVERTED">DIVERTED (Diverted Route)</option>
+                                <option value="SUSPENDED">SUSPENDED (Suspended Service)</option>
+                                <option value="UPCOMING">UPCOMING (Scheduled Future)</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold text-muted">Official Source Bulletin URL</label>
+                            <input type="url" name="source_url" class="form-control" placeholder="https://salemcitypolice.tn.gov.in/notices/..." required>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" name="is_sample" id="is_sample_check">
+                                <label class="form-check-label small text-secondary" for="is_sample_check">
+                                    Mark as <strong>Demonstration Notice</strong> (Leave unchecked for official verified advisories)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm fw-semibold" style="background-color: var(--primary-navy); border-color: var(--primary-navy);">
+                        <i class="fas fa-check me-1"></i> Publish Announcement
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODAL: EDIT / EXTEND NOTICE ================= -->
+<div class="modal fade" id="editNoticeModal" tabindex="-1" aria-labelledby="editNoticeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="editNoticeForm" method="POST">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fs-6 fw-bold" id="editNoticeModalLabel">
+                        <i class="fas fa-pen-to-square text-cyan me-1"></i> Edit / Extend Transit Notice
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Issuing Agency</label>
+                            <select name="agency" id="edit_agency" class="form-select" required>
+                                {% for ag in agencies %}
+                                    <option value="{{ ag.agency_id }}">{{ ag.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Announcement Type</label>
+                            <select name="notice_type" id="edit_notice_type" class="form-select" required>
+                                <option value="Route Diversion">Route Diversion</option>
+                                <option value="Temporary Cancellation">Temporary Cancellation</option>
+                                <option value="Service Interruption">Service Interruption</option>
+                                <option value="Road Closure">Road Closure</option>
+                                <option value="Planned Maintenance">Planned Maintenance</option>
+                                <option value="Service Restoration">Service Restoration</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Affected Bus Routes</label>
+                            <input type="text" name="route_id" id="edit_route_id" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Affected Salem Area</label>
+                            <input type="text" name="area" id="edit_area" class="form-control" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold text-muted">Summary</label>
+                            <input type="text" name="summary" id="edit_summary" class="form-control" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold text-muted">Description</label>
+                            <textarea name="description" id="edit_description" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Valid From (YYYY-MM-DD HH:MM:SS)</label>
+                            <input type="text" name="valid_from" id="edit_valid_from" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Valid To (Extend here to create Revision)</label>
+                            <input type="text" name="valid_to" id="edit_valid_to" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold text-muted">Notice Status</label>
+                            <select name="status" id="edit_status" class="form-select">
+                                <option value="ACTIVE">ACTIVE</option>
+                                <option value="UPCOMING">UPCOMING</option>
+                                <option value="EXPIRED">EXPIRED</option>
+                                <option value="CANCELLED">CANCELLED</option>
+                                <option value="RESTORED">RESTORED</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold text-muted">Alert Severity</label>
+                            <select name="alert_status" id="edit_alert_status" class="form-select">
+                                <option value="WARNING">WARNING</option>
+                                <option value="CRITICAL">CRITICAL</option>
+                                <option value="INFO">INFO</option>
+                                <option value="RESOLVED">RESOLVED</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold text-muted">Source URL</label>
+                            <input type="url" name="source_url" id="edit_source_url" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm fw-semibold" style="background-color: var(--cyan-primary); border-color: var(--cyan-primary);">
+                        <i class="fas fa-save me-1"></i> Save Updates & Log Revision
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODAL: MANAGE ROUTE ================= -->
+<div class="modal fade" id="manageRouteModal" tabindex="-1" aria-labelledby="manageRouteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('admin_manage_route') }}" method="POST">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fs-6 fw-bold" id="manageRouteModalLabel">
+                        <i class="fas fa-route text-cyan me-1"></i> Add / Edit Salem Bus Route
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Route Identifier (e.g. 13)</label>
+                            <input type="text" name="route_id" id="route_id_input" class="form-control" placeholder="13" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Route Display Name</label>
+                            <input type="text" name="route_number" id="route_number_input" class="form-control" placeholder="Route 13" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Origin (Starting Point)</label>
+                            <input type="text" name="origin" id="route_origin_input" class="form-control" placeholder="e.g. Salem New Bus Stand" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-muted">Destination</label>
+                            <input type="text" name="destination" id="route_dest_input" class="form-control" placeholder="e.g. Gorimedu" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold text-muted">Key Intermediate Bus Stops (Comma-separated)</label>
+                            <input type="text" name="key_stops" id="route_stops_input" class="form-control" placeholder="Fairlands, Five Roads, Hasthampatti..." required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold text-muted">Description / Sector Purpose</label>
+                            <textarea name="description" id="route_desc_input" class="form-control" rows="2" placeholder="Caters to students, IT corridor commuters..."></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold text-muted">Operating Agency</label>
+                            <input type="text" name="operating_agency" id="route_agency_input" class="form-control" value="TNSTC-SLM" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm fw-semibold" style="background-color: var(--primary-navy); border-color: var(--primary-navy);">
+                        <i class="fas fa-check me-1"></i> Save Route
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Edit Notice Modal Data Population
+    document.querySelectorAll('.edit-notice-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-id');
+            const form = document.getElementById('editNoticeForm');
+            form.action = `/admin/notices/edit/${id}`;
+
+            document.getElementById('edit_agency').value = btn.getAttribute('data-agency');
+            document.getElementById('edit_route_id').value = btn.getAttribute('data-route');
+            document.getElementById('edit_area').value = btn.getAttribute('data-area');
+            document.getElementById('edit_notice_type').value = btn.getAttribute('data-type');
+            document.getElementById('edit_summary').value = btn.getAttribute('data-summary');
+            document.getElementById('edit_description').value = btn.getAttribute('data-desc');
+            document.getElementById('edit_valid_from').value = btn.getAttribute('data-validfrom');
+            document.getElementById('edit_valid_to').value = btn.getAttribute('data-validto');
+            document.getElementById('edit_status').value = btn.getAttribute('data-status');
+            document.getElementById('edit_alert_status').value = btn.getAttribute('data-alert');
+            document.getElementById('edit_source_url').value = btn.getAttribute('data-source');
+        });
+    });
+
+    // Edit Route Modal Data Population
+    document.querySelectorAll('.edit-route-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.getElementById('route_id_input').value = btn.getAttribute('data-id');
+            document.getElementById('route_number_input').value = btn.getAttribute('data-number');
+            document.getElementById('route_origin_input').value = btn.getAttribute('data-origin');
+            document.getElementById('route_dest_input').value = btn.getAttribute('data-dest');
+            document.getElementById('route_stops_input').value = btn.getAttribute('data-stops');
+            document.getElementById('route_desc_input').value = btn.getAttribute('data-desc');
+            document.getElementById('route_agency_input').value = btn.getAttribute('data-agency');
+        });
+    });
+</script>
+{% endblock %}

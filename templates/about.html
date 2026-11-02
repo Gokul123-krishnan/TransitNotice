@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}About – TransitNotice Salem City Bus Tracker{% endblock %}
+
+{% block content %}
+<div class="about-page-container">
+
+    <!-- Header -->
+    <div class="mb-4 text-center py-4 bg-white rounded-3 border shadow-sm">
+        <div class="brand-logo-icon mx-auto mb-3" style="width: 50px; height: 50px; font-size: 1.5rem;">
+            <i class="fas fa-bus-alt"></i>
+        </div>
+        <h2 class="fw-bold mb-1" style="color: var(--primary-navy);">
+            TransitNotice – Salem City Bus Transit Update Tracker
+        </h2>
+        <p class="text-muted small mx-auto" style="max-width: 650px;">
+            A purpose-built, responsive public transportation intelligence portal delivering official service updates, route diversions, and transit maintenance notices for <strong>Salem City, Tamil Nadu, India</strong>.
+        </p>
+        <span class="badge bg-dark text-cyan p-2">
+            <i class="fas fa-location-crosshairs me-1"></i> Strictly Restricted to Salem City Transit Network
+        </span>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <!-- Purpose & Exclusivity -->
+        <div class="col-lg-6">
+            <div class="transit-panel h-100">
+                <div class="transit-panel-header">
+                    <h5 class="transit-panel-title">
+                        <i class="fas fa-compass text-cyan"></i> Project Scope & City Exclusivity
+                    </h5>
+                </div>
+                <div class="transit-panel-body p-4">
+                    <p class="text-secondary small" style="line-height: 1.65;">
+                        Most statewide transit portals mix inter-city express buses with local updates, leaving daily city bus passengers in Salem confused during sudden road diversions or smart city construction works.
+                    </p>
+                    <p class="text-secondary small" style="line-height: 1.65;">
+                        <strong>TransitNotice</strong> is engineered exclusively for Salem City. Cities like Chennai, Coimbatore, and Madurai are intentionally excluded to ensure 100% localized accuracy and high-fidelity monitoring of Salem's intra-city bus network.
+                    </p>
+                    <div class="p-3 bg-light rounded-2 border">
+                        <h6 class="fw-bold small text-dark mb-2">Key Salem Transit Areas Covered:</h6>
+                        <div class="d-flex flex-wrap gap-1">
+                            <span class="badge bg-white text-dark border">Salem Central (Old) Bus Stand</span>
+                            <span class="badge bg-white text-dark border">Salem New Bus Stand (MGR Central)</span>
+                            <span class="badge bg-white text-dark border">Salem Junction / Suramangalam</span>
+                            <span class="badge bg-white text-dark border">Five Roads (Ainthu Karadu)</span>
+                            <span class="badge bg-white text-dark border">Hasthampatti</span>
+                            <span class="badge bg-white text-dark border">Fairlands</span>
+                            <span class="badge bg-white text-dark border">Ammapet</span>
+                            <span class="badge bg-white text-dark border">Kondalampatti</span>
+                            <span class="badge bg-white text-dark border">Gorimedu</span>
+                            <span class="badge bg-white text-dark border">Salem Steel Plant</span>
+                            <span class="badge bg-white text-dark border">Omalur Road</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scraper Principles & Data Integrity -->
+        <div class="col-lg-6">
+            <div class="transit-panel h-100">
+                <div class="transit-panel-header">
+                    <h5 class="transit-panel-title">
+                        <i class="fas fa-robot text-cyan"></i> Ethical Scraping & Live Verification
+                    </h5>
+                </div>
+                <div class="transit-panel-body p-4">
+                    <p class="text-secondary small mb-3" style="line-height: 1.65;">
+                        TransitNotice adheres to strict data ethics and transparent source attribution guidelines:
+                    </p>
+                    <ul class="list-unstyled small text-secondary mb-3" style="line-height: 1.7;">
+                        <li class="mb-2">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            <strong>Robots.txt & Terms Compliance:</strong> Scrapers strictly inspect and respect <code>robots.txt</code> crawl policies.
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            <strong>Zero Circumvention:</strong> We never bypass CAPTCHA, authentication screens, or rate limits.
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            <strong>Content Fingerprinting:</strong> SHA-256 cryptographic hashing detects modifications, extensions, and restorations.
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            <strong>No Fabricated GPS Dots:</strong> We strictly avoid fake live GPS map pins that mislead passengers.
+                        </li>
+                        <li class="mb-0">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            <strong>Asia/Kolkata Timezone:</strong> All validity windows, scraper logs, and timestamps use IST (UTC+05:30).
+                        </li>
+                    </ul>
+
+                    <div class="d-flex align-items-center justify-content-between p-2 bg-light border rounded">
+                        <span class="small text-muted">Scraper Engine Status:</span>
+                        <span class="badge bg-success text-white">
+                            <i class="fas fa-circle-play me-1"></i> Background Scheduler Active (Every {{ scheduler_status.interval_minutes }}m)
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Official Salem Transport Agencies -->
+    <div class="transit-panel mb-4">
+        <div class="transit-panel-header">
+            <h5 class="transit-panel-title">
+                <i class="fas fa-building-flag text-cyan"></i> Monitored Official Salem Transport Authorities
+            </h5>
+        </div>
+        <div class="transit-panel-body p-3">
+            <div class="row g-3">
+                {% for ag in agencies %}
+                    <div class="col-md-4">
+                        <div class="p-3 border rounded-3 bg-light h-100 d-flex flex-direction-column justify-content-between">
+                            <div>
+                                <div class="badge bg-dark text-cyan mb-2">{{ ag.agency_id }}</div>
+                                <h6 class="fw-bold text-dark mb-1">{{ ag.name }}</h6>
+                                <p class="text-muted small mb-2">{{ ag.authority_type }}</p>
+                                <p class="small text-secondary mb-3" style="font-size: 0.78rem;">
+                                    <i class="fas fa-location-dot me-1 text-danger"></i> {{ ag.contact_info }}
+                                </p>
+                            </div>
+                            {% if ag.portal_url %}
+                                <a href="{{ ag.portal_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary w-100" style="font-size: 0.75rem;">
+                                    <i class="fas fa-arrow-up-right-from-square me-1"></i> Official Portal
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Demonstration Data vs Official Verified Data Policy -->
+    <div class="transit-panel">
+        <div class="transit-panel-header">
+            <h5 class="transit-panel-title">
+                <i class="fas fa-circle-info text-info"></i> Data Disclosure Policy
+            </h5>
+        </div>
+        <div class="transit-panel-body p-4">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <p class="text-secondary small mb-2" style="line-height: 1.6;">
+                        In compliance with data transparency mandates, any synthetic or test advisories generated for system verification and training are permanently labelled with a purple <strong>Demonstration Data</strong> tag.
+                    </p>
+                    <p class="text-secondary small mb-0" style="line-height: 1.6;">
+                        Only bulletins retrieved and parsed from permitted government circulars bear the green <strong>Official Verified Notice</strong> badge with explicit source URL attribution.
+                    </p>
+                </div>
+                <div class="col-md-4 text-center">
+                    <div class="p-3 bg-light rounded border">
+                        <div class="mb-2"><span class="badge-official-data px-2 py-1"><i class="fas fa-shield-check"></i> Official Live Notice</span></div>
+                        <div><span class="badge-sample-data px-2 py-1">Demonstration Notice</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
